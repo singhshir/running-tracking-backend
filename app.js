@@ -16,8 +16,11 @@ const app = express();
 // ---------------------------------------------------------------------------
 
 // Security: sets various HTTP headers to help protect against common attacks
-app.use(helmet());
-
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 // CORS: allows our React frontend (running on a different origin/port)
 // to make requests to this API, and allows cookies to be sent cross-origin.
 const allowedOrigins = [
