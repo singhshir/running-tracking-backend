@@ -196,20 +196,7 @@ const deleteRun = async (req, res, next) => {
   }
 };
 
-// -----------------------------------------------------------------------------
-// @desc    Get aggregate running statistics for the logged-in user
-// @route   GET /api/runs/statistics
-// @access  Private
-//
-// WHAT IT DOES: Computes overall stats across all of the user's COMPLETED
-//               runs: total runs, total distance, total time, longest run,
-//               average pace, average speed, total calories, and distance
-//               for the current week / current month.
-// WHY IT EXISTS: Powers a "dashboard" or "stats" screen so users can see
-//                their overall progress, not just individual runs.
-// FLOW: fetch all completed runs for user -> reduce/aggregate stats in JS
-//       (simple & beginner-friendly, avoids complex aggregation pipelines)
-// -----------------------------------------------------------------------------
+
 const getStatistics = async (req, res, next) => {
   try {
     const runs = await Run.find({ user: req.user._id, status: 'completed' });
@@ -274,6 +261,61 @@ const getStatistics = async (req, res, next) => {
   }
 };
 
+const getMonthlyLeaderboard = async (req, res, next) => {
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const rows = await Run.aggregate([
+      { $match: { status: 'completed', createdAt: { $gte: startOfMonth } } },
+      {
+        $group: {
+          _id: '$user',
+          totalDistance: { $sum: '$distance' },
+          totalRuns: { $sum: 1 },
+          totalDuration: { $sum: '$duration' },
+        },
+      },
+      { $sort: { totalDistance: -1, totalRuns: -1 } },
+      {
+        $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'userInfo' },
+      },
+      { $unwind: '$userInfo' },
+      {
+        $project: {
+          _id: 0,
+          userId: '$_id',
+          name: '$userInfo.name',
+          profileImage: '$userInfo.profileImage',
+          totalDistance: 1,
+          totalRuns: 1,
+          totalDuration: 1,
+        },
+      },
+    ]);
+
+    const ranked = rows.map((row, index) => ({
+      rank: index + 1,
+      userId: row.userId,
+      name: row.name,
+      profileImage: row.profileImage,
+      totalDistance: Math.round(row.totalDistance * 100) / 100,
+      totalRuns: row.totalRuns,
+      averagePace: calculatePace(row.totalDistance, row.totalDuration),
+    }));
+
+    const topTen = ranked.slice(0, 10);
+    const currentUserEntry = ranked.find((e) => String(e.userId) === String(req.user._id)) || null;
+
+    return sendSuccess(res, 200, 'Monthly leaderboard fetched successfully', {
+      topTen,
+      currentUser: currentUserEntry, // null if you have no completed runs this month
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   startRun,
   addLocation,
@@ -282,4 +324,5 @@ module.exports = {
   getRunById,
   deleteRun,
   getStatistics,
+  getMonthlyLeaderboard,
 };

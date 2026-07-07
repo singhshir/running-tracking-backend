@@ -20,6 +20,7 @@ const {
   getRunById,
   deleteRun,
   getStatistics,
+  getMonthlyLeaderboard,
 } = require('../controllers/runController');
 
 const { protect } = require('../middleware/authMiddleware');
@@ -44,6 +45,8 @@ router.post('/stop', stopRunValidator, validate, stopRun);
 
 // @route   GET /api/runs/statistics  (must come before /:id)
 router.get('/statistics', getStatistics);
+
+router.get('/leaderboard/monthly', getMonthlyLeaderboard);
 
 // @route   GET /api/runs
 router.get('/', getRuns);

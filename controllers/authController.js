@@ -3,6 +3,8 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
+const crypto = require('crypto');
+const sendEmail = require('../utils/sendEmail');
 
 const fs = require('fs');
 

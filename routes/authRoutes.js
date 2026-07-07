@@ -21,6 +21,8 @@ const {
   registerValidator,
   loginValidator,
   updateProfileValidator,
+  resetPasswordValidator,
+  forgotPasswordValidator,
 } = require('../validators/authValidator');
 
 // @route   POST /api/auth/register
@@ -37,6 +39,12 @@ router.put('/profile', protect, updateProfileValidator, validate, updateProfile)
 
 // @route   POST /api/auth/profile/photo
 router.post('/profile/photo', protect, upload.single('photo'), uploadProfilePhoto);
+
+// @route   POST /api/auth/forgot-password
+router.post('/forgot-password', forgotPasswordValidator, validate, forgotPasswordValidator);
+
+// @route   PUT /api/auth/reset-password/:token
+router.put('/reset-password/:token', resetPasswordValidator, validate, resetPasswordValidator);
 
 // @route   POST /api/auth/logout
 router.post('/logout', protect, logoutUser);
