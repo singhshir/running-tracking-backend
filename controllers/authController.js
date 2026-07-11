@@ -1,5 +1,3 @@
-
-
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
@@ -155,6 +153,86 @@ const uploadProfilePhoto = async (req, res, next) => {
   }
 };
 
+// @route   POST /api/auth/forgot-password
+const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    // Don't reveal whether the email exists — always respond the same way.
+    if (!user) {
+      return sendSuccess(res, 200, 'If that email is registered, a reset link has been sent');
+    }
+
+    const rawToken = user.generatePasswordResetToken();
+    await user.save({ validateBeforeSave: false });
+
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${rawToken}`;
+    const html = `
+      <p>You requested a password reset for your Real-Time Running Tracker account.</p>
+      <p>Click the link below to choose a new password. This link expires in 30 minutes.</p>
+      <p><a href="${resetUrl}">${resetUrl}</a></p>
+      <p>If you didn't request this, you can safely ignore this email.</p>
+    `;
+
+    try {
+      await sendEmail({ to: user.email, subject: 'Password Reset Request', html });
+    } catch (emailError) {
+      // Log the real reason to the server terminal — without this, every
+      // email failure looks identical from the frontend.
+      console.error('sendEmail failed:', emailError.message);
+
+      // Sending failed — roll back the token so the user can safely retry.
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+      return sendError(res, 500, 'Could not send password reset email. Please try again later.');
+    }
+
+    return sendSuccess(res, 200, 'If that email is registered, a reset link has been sent');
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   PUT /api/auth/reset-password/:token
+const resetPassword = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    // The raw token from the URL must be re-hashed the same way it was
+    // stored, since only the hash is ever kept in the database.
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    }).select('+resetPasswordToken +resetPasswordExpire');
+
+    if (!user) {
+      return sendError(res, 400, 'This reset link is invalid or has expired');
+    }
+
+    user.password = password; // re-hashed automatically by the pre('save') hook
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+
+    // Log the user straight in, same as register/login.
+    const jwtToken = generateToken(user._id);
+    setTokenCookie(res, jwtToken);
+
+    return sendSuccess(res, 200, 'Password reset successful', {
+      user,
+      token: jwtToken,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -162,4 +240,6 @@ module.exports = {
   updateProfile,
   uploadProfilePhoto,
   logoutUser,
+  forgotPassword,
+  resetPassword,
 };

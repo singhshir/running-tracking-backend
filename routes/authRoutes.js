@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 
@@ -11,6 +10,8 @@ const {
   updateProfile,
   uploadProfilePhoto,
   logoutUser,
+  forgotPassword,
+  resetPassword,
 } = require('../controllers/authController');
 
 const { protect } = require('../middleware/authMiddleware');
@@ -41,10 +42,10 @@ router.put('/profile', protect, updateProfileValidator, validate, updateProfile)
 router.post('/profile/photo', protect, upload.single('photo'), uploadProfilePhoto);
 
 // @route   POST /api/auth/forgot-password
-router.post('/forgot-password', forgotPasswordValidator, validate, forgotPasswordValidator);
+router.post('/forgot-password', forgotPasswordValidator, validate, forgotPassword);
 
 // @route   PUT /api/auth/reset-password/:token
-router.put('/reset-password/:token', resetPasswordValidator, validate, resetPasswordValidator);
+router.put('/reset-password/:token', resetPasswordValidator, validate, resetPassword);
 
 // @route   POST /api/auth/logout
 router.post('/logout', protect, logoutUser);
