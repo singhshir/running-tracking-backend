@@ -168,7 +168,7 @@ const forgotPassword = async (req, res, next) => {
     const rawToken = user.generatePasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${rawToken}`;
+    const resetUrl = `http://localhost:3000/reset-password/${rawToken}`;
     const html = `
       <p>You requested a password reset for your Real-Time Running Tracker account.</p>
       <p>Click the link below to choose a new password. This link expires in 30 minutes.</p>
